@@ -1,4 +1,4 @@
-package graylog // import "gopkg.in/gemnasium/logrus-graylog-hook.v1"
+ package graylog
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/SocialCodeInc/go-gelf/gelf"
+	"log"
 )
 
 // Set graylog.BufSize = <value> _before_ calling NewGraylogHook
@@ -105,11 +106,20 @@ func (hook *GraylogHook) sendEntry(entry graylogEntry) {
 	// Merge extra fields
 	for k, v := range hook.Extra {
 		k = fmt.Sprintf("_%s", k) // "[...] every field you send and prefix with a _ (underscore) will be treated as an additional field."
-		extra[k] = v
+		if err, ok := v.(error); ok {
+			extra[k] = err.Error()
+		} else {
+			extra[k] = v
+		}
 	}
 	for k, v := range entry.Data {
 		k = fmt.Sprintf("_%s", k) // "[...] every field you send and prefix with a _ (underscore) will be treated as an additional field."
-		extra[k] = v
+		if err, ok := v.(error); ok {
+			extra[k] = err.Error()
+			log.Println("Error object:", err)
+		} else {
+			extra[k] = v
+		}
 	}
 
 	m := gelf.Message{
