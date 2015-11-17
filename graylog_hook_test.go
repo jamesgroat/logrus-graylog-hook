@@ -3,6 +3,7 @@ package graylog
 import (
 	"strings"
 	"testing"
+	"errors"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/SocialCodeInc/go-gelf/gelf"
@@ -16,12 +17,12 @@ func TestWritingToUDP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewReader: %s", err)
 	}
-	hook := NewGraylogHook(r.Addr(), "test_facility", map[string]interface{}{"foo": "bar"})
+	hook := NewGraylogHook(r.Addr(), "test_facility", map[string]interface{}{"foo": "bar", "error1": errors.New("error from extra")})
 	msgData := "test message\nsecond line"
 
 	log := logrus.New()
 	log.Hooks.Add(hook)
-	log.WithField("withField", "1").Info(msgData)
+	log.WithField("withField", "1").WithError(errors.New("error from data")).Info(msgData)
 
 	msg, err := r.ReadMessage()
 
@@ -45,8 +46,8 @@ func TestWritingToUDP(t *testing.T) {
 		t.Errorf("msg.Facility: expected %#v, got %#v)", "test_facility", msg.Facility)
 	}
 
-	if len(msg.Extra) != 2 {
-		t.Errorf("wrong number of extra fields (exp: %d, got %d) in %v", 2, len(msg.Extra), msg.Extra)
+	if len(msg.Extra) != 4 {
+		t.Errorf("wrong number of extra fields (exp: %d, got %d) in %v", 4, len(msg.Extra), msg.Extra)
 	}
 
 	fileExpected := "graylog_hook_test.go"
@@ -55,19 +56,19 @@ func TestWritingToUDP(t *testing.T) {
 			msg.File)
 	}
 
-	line := 24            // line where log.Info is called above
+	line := 25            // line where log.Info is called above
 	if msg.Line != line { // Update this if code is updated above
 		t.Errorf("msg.Line: expected %d, got %d", line, msg.Line)
 	}
 
-	if len(msg.Extra) != 2 {
-		t.Errorf("wrong number of extra fields (exp: %d, got %d) in %v", 2, len(msg.Extra), msg.Extra)
+	if len(msg.Extra) != 4 {
+		t.Errorf("wrong number of extra fields (exp: %d, got %d) in %v", 4, len(msg.Extra), msg.Extra)
 	}
 
-	extra := map[string]interface{}{"foo": "bar", "withField": "1"}
+	extra := map[string]interface{}{"foo": "bar", "withField": "1", "error1": "error from extra", logrus.ErrorKey: "error from data"}
 
 	for k, v := range extra {
-		// Remember extra fileds are prefixed with "_"
+		// Remember extra fields are prefixed with "_"
 		if msg.Extra["_"+k].(string) != extra[k].(string) {
 			t.Errorf("Expected extra '%s' to be %#v, got %#v", k, v, msg.Extra["_"+k])
 		}

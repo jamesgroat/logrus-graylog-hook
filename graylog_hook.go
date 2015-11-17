@@ -105,11 +105,19 @@ func (hook *GraylogHook) sendEntry(entry graylogEntry) {
 	// Merge extra fields
 	for k, v := range hook.Extra {
 		k = fmt.Sprintf("_%s", k) // "[...] every field you send and prefix with a _ (underscore) will be treated as an additional field."
-		extra[k] = v
+		if err, ok := v.(error); ok {
+			extra[k] = err.Error()
+		} else {
+			extra[k] = v
+		}
 	}
 	for k, v := range entry.Data {
 		k = fmt.Sprintf("_%s", k) // "[...] every field you send and prefix with a _ (underscore) will be treated as an additional field."
-		extra[k] = v
+		if err, ok := v.(error); ok {
+			extra[k] = err.Error()
+		} else {
+			extra[k] = v
+		}
 	}
 
 	m := gelf.Message{
